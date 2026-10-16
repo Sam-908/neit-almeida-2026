@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Week 2 JavaScript Lab</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            @font-face {
+                font-family: banana;
+                src: url(fonts/Yellow_Banana.TTF);
+            }
+            @font-face {
+                font-family: grafitti;
+                src: url(fonts/GrafittiNewYear.TTF);
+            }
+            body{
+                background-color: cornflowerblue;
+            }
+            #container{
+                width: 100%;
+                text-align: center; 
+            }
+            #output{
+                font-family: "banana";
+                color: rgb(238, 75, 103);
+                background-color: black;
+                font-size: 60px;
+                width: 100px;
+                margin-left: auto;
+                margin-right: auto;
+                border: 10px inset gray;
+            }
+            h1, h2{
+                font-family: "grafitti";
+                font-weight: normal;
+                color: #ffaa00;
+            }
+
+            #btn:hover{
+                transform: scale(1.05);
+
+            }
+            #btn:active{
+                transform: scale(0.9);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <h1>Week 2 JavaScript Lab</h1>
+            <span id="message"></span>
+            <hr>
+            <br>
+            <h2>Button Clicker</h2>
+            <h3 id="output">0</h3>
+            <button type="button" id="btn" style="background: none; border: none;">
+                <img src="images/buttonclicker.png" alt="Button Image" width="100">
+            </button>
+            <br>
+            <!-- <input type="button" value="Click Me!!" id="btn"> -->
+            <input type="button" value="Clear Clicks" id="btn-reset">
+        </div>
+        
+
+        <!-- Example JavaScript -->
+         <script>
+            //This is the example JavaScript code
+            // var name = prompt("What is your name??")
+            // var firstNumber = prompt("Give me your first number");
+            // var secondNumber = prompt("Give me your second number");
+            // var value = firstNumber * secondNumber;
+            // var message = `Hello ${name}!
+            //     \nYour first number was:${firstNumber}
+            //     \nYour second number is:${secondNumber}
+            //     \nYour value is: ${value}`;
+            // console.log(message);
+            // document.getElementById("message").innerHTML = message;
+            // document.getElementById("message").style.color = "green";
+
+            //Button Clicker Game
+            var clickerButton = document.querySelector("#btn");
+            var clearButton = document.querySelector("#btn-reset");
+            var clickerOutput = document.querySelector("#output");
+            var clickerSound = new Audio("audio/button-1.mp3");
+
+            var numberOfClicks = 0;
+
+            clickerButton.addEventListener("click", function(){
+                numberOfClicks++;
+                updateClickerDisplay();
+                clickerSound.currentTime = 0;
+                clickerSound.play();
+
+                if(numberOfClicks == 25){
+                    alert("You made 25 clicks!");
+                }
+            });
+
+            clearButton.addEventListener("click", function(){
+                numberOfClicks = 0;
+                updateClickerDisplay();
+            });
+
+            function updateClickerDisplay(){
+                clickerOutput.innerHTML = numberOfClicks;
+            }
+            
+         </script>
+    </body>
+</html>
