@@ -64,10 +64,10 @@ var w = false;
 var s = false;
 var space = false;
 
-//Add a variable for the bullets
+//Add a variable for the bullets/ box
 var bullets = [];
 var shootCooldown = 0;
-
+var boxCooldown = 0;
 
 
 //on key pressed
@@ -254,9 +254,6 @@ function game(){
             moveDirection.y = 0;
             shot += 1;
             continue;
-
-            //Spawns box back in
-
         }
 
         for(var j = 0; j<stars.length; j++){
