@@ -16,7 +16,7 @@ var friction = 0.9;
 var score = 0;
 
 var states = ["title" ,"game"];
-states = "title";
+states = "game";
 
 var shot = 0;
 
