@@ -9,13 +9,75 @@ var spit = [];
 var shootCooldown = 0;
 var startCooldown = 10;
 var boxCooldown = 0;
+
+var moveDirection = {x:1,y:1};
+
 var spitSound = new Audio("audio/velcro-strap-2.mp3")
+
+var alpacaSprite = {image:document.getElementById("alpaca"),x:1,y:1,moveX:0, moveY:0};
+var keeper = {image:document.getElementById("keeper"),x:1,y:1,moveX:0, moveY:0};
+
+var acceleration = 0.5;
+var friction = 0.9;
+
+var a = false;
+var d = false;
+var w = false;
+var s = false;
+var space = false;
+var enter = false;
 
 var score = 0;
 
 //Display home screen
 var states = ["title" ,"game" , "over" , "win"];
 states = "game";
+
+//Allows controls to work
+document.addEventListener("keydown", function(e){
+    console.log(e.key);
+    if(e.key == "a"){
+        a = true;
+    }
+    if(e.key == "d"){
+        d = true;
+    }
+    if(e.key == "w"){
+        w = true;
+    }
+    if(e.key == "s"){
+        s = true;
+    }
+    if(e.code === "Space"){
+        space = true;
+        e.preventDefault();
+    }
+    if(e.key == "Enter"){
+        enter = true;
+    }
+});
+
+document.addEventListener("keyup", function(e){
+    console.log(e.key);
+    if(e.key == "a"){
+        a = false;
+    }
+    if(e.key == "d"){
+        d = false;
+    }
+    if(e.key == "w"){
+        w = false;
+    }
+    if(e.key == "s"){
+        s = false;
+    }
+    if(e.code === "Space"){
+        space = false;
+    }
+    if(e.key == "Enter"){
+        enter = false;
+    }
+});
 
 // Display Game Title "SPIT AND RUN"
 function game(){
