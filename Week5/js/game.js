@@ -13,6 +13,26 @@ var boxCooldown = 0;
 var moveDirection = {x:1,y:1};
 
 var spitSound = new Audio("audio/velcro-strap-2.mp3")
+var keeperDie = new Audio("audio/man-scream-01.mp3")
+
+function createDudes(){
+    var dudes = {image:document.getElementById("dudes"),
+        x:1,
+        y:1,
+        moveX:0, 
+        moveY:0,}
+    return dudes;
+}
+
+var dudesCount = 50;
+var dudes = [];
+
+for(var i = 0; i < dudesCount; i++){
+    dudes[i] = createDudes();
+    dudes[i].x = Math.random() * canvas.width;
+    dudes[i].y = Math.random() * canvas.height;
+    dudes[i].radius = Math.random() * 5;
+}
 
 var alpacaSprite = {image:document.getElementById("alpaca"),x:1,y:1,moveX:0, moveY:0};
 var keeper = {image:document.getElementById("keeper"),x:1,y:1,moveX:0, moveY:0};
@@ -79,9 +99,7 @@ document.addEventListener("keyup", function(e){
     }
 });
 
-// Display Game Title "SPIT AND RUN"
 function game(){
-  //clear the screen
     ctx.clearRect(0,0,canvas.width,canvas.height);
     switch(states){
         case "title":
@@ -111,10 +129,6 @@ function game(){
         break;
 
         case "game":
-            //Create player alpaca and enemies
-    ctx.drawImage(keeper.image, keeper.x, keeper.y, 25,25);
-    ctx.drawImage(alpacaSprite.image, alpacaSprite.x, alpacaSprite.y, 25,25);
-
             if(startCooldown > 0){
                 startCooldown -= 1;     
             }
@@ -181,7 +195,7 @@ function game(){
     alpacaSprite.moveY *= friction;
 
     //Update the X and Y position values
-    alpacaSprite.x += alpacaToKeeperCollisionSprite.moveX;
+    alpacaSprite.x += alpacaSprite.moveX;
     alpacaSprite.y += alpacaSprite.moveY;
 
     //Spit firing code
@@ -207,6 +221,26 @@ function game(){
     ctx.fillStyle = "green";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
+    //Draws dudes
+     for(var i = 0; i < dudes.length; i++){
+        //Collide with dudes
+        if(alpacaToKeeperCollision(alpacaSprite, dudes[i] && startCooldown <= 0)){  
+            alpacaSprite.x = canvas.width/2
+            alpacaSprite.y = canvas.height/2 + 100;
+
+            alpacaSprite.moveX = 0;
+            alpacaSprite.moveY = 0;
+            score = 0;
+            //return;
+        }
+        dudes[i].y++;
+        if(dudes[i].y > canvas.height + dudes[i].radius *2){
+            dudes[i].x = Math.random() * canvas.width;
+            dudes[i].y = -(Math.random() * canvas.height);
+            score += 1;
+        }
+    }
+
     //Player spits at zookeeper
     for(var i = spit.length -1; i>=0; i--){
         var bullet = spit[i];
@@ -229,6 +263,8 @@ function game(){
             keeper.x = 100000;
             moveDirection.x = 0;
             moveDirection.y = 0;
+            keeperDie.currentTime = 0;
+            keeperDie.play();
             score += 5;
             continue;
         }
@@ -237,11 +273,14 @@ function game(){
         ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
     }
 
+    //Create player alpaca and enemies
+    ctx.drawImage(keeper.image, keeper.x, keeper.y, 50,50);
+    ctx.drawImage(alpacaSprite.image, alpacaSprite.x, alpacaSprite.y, 50,50);
     
     //Display score in game
     ctx.fillStyle = "White";
     ctx.font = "30px Arial";
-    ctx.fillText(`Stars: ${score}`,625,80); 
+    ctx.fillText(`Score: ${score}`,625,80); 
      break;
     }
 
