@@ -34,8 +34,20 @@ for(var i = 0; i < dudesCount; i++){
     dudes[i].radius = Math.random() * 5;
 }
 
-var alpacaSprite = {image:document.getElementById("alpaca"),x:1,y:1,moveX:0, moveY:0};
-var keeper = {image:document.getElementById("keeper"),x:1,y:1,moveX:0, moveY:0};
+var alpacaSprite = {image:document.getElementById("alpaca"),x:canvas.width/2,y:canvas.height/2,moveX:0, moveY:0};
+var keeper = {image:document.getElementById("keeper"),x:rand(0, canvas.width),y:rand(0,canvas.height),moveX:0, moveY:0};
+
+function createKeepers(){
+    var keeper = {image:document.getElementById("keeper"),x:rand(0, canvas.width),y:rand(0,canvas.height),moveX:randomNegOneAndOne(), moveY:randomNegOneAndOne()};
+    return keeper;
+}
+
+var keepers = []
+var numberofKeepers = 3;
+
+for(var i = 0 ; i<numberofKeepers; i++){
+    keepers[i] = new createKeepers();
+}
 
 var acceleration = 0.5;
 var friction = 0.9;
@@ -49,9 +61,11 @@ var enter = false;
 
 var score = 0;
 
+
+
 //Display home screen
 var states = ["title" ,"game" , "over" , "win"];
-states = "game";
+states = "title";
 
 //Allows controls to work
 document.addEventListener("keydown", function(e){
@@ -141,21 +155,6 @@ function game(){
                 alpacaSprite.y  < keeper.y + 25 &&
                 alpacaSprite.y  + 25 > keeper.y;
 
-    //Colliding with keeper
-    if(hitBox == true && startCooldown <= 0){
-
-        //The keeper sprite hit the player
-        alpacaSprite.x = canvas.width/2
-        alpacaSprite.y = canvas.height/2 + 100;
-
-        alpacaSprite.moveX = 0;
-        alpacaSprite.moveY = 0;
-        score = 0;
-        if(alpacaToKeeperCollision){
-            switchScenes ("over");
-        }
-    }
-
    //Allow player to move around
     if(a == true){
         alpacaSprite.moveX -= acceleration;
@@ -224,14 +223,14 @@ function game(){
     //Draws dudes
      for(var i = 0; i < dudes.length; i++){
         //Collide with dudes
-        if(alpacaToKeeperCollision(alpacaSprite, dudes[i] && startCooldown <= 0)){  
+        if(alpacaToEnemyCollision(alpacaSprite, dudes[i] && startCooldown <= 0)){  
             alpacaSprite.x = canvas.width/2
             alpacaSprite.y = canvas.height/2 + 100;
 
             alpacaSprite.moveX = 0;
             alpacaSprite.moveY = 0;
-            score = 0;
-            //return;
+            score = -1;
+            return;
         }
         dudes[i].y++;
         if(dudes[i].y > canvas.height + dudes[i].radius *2){
@@ -239,6 +238,18 @@ function game(){
             dudes[i].y = -(Math.random() * canvas.height);
             score += 1;
         }
+    }
+
+   //Colliding with keeper
+    if(hitBox == true && startCooldown <= 0){
+        switchScenes ("over");  
+        //The keeper sprite hit the player
+        alpacaSprite.x = canvas.width/2
+        alpacaSprite.y = canvas.height/2 + 100;
+
+        alpacaSprite.moveX = 0;
+        alpacaSprite.moveY = 0;
+        score = 0;
     }
 
     //Player spits at zookeeper
@@ -260,9 +271,9 @@ function game(){
 
         if(hitBox){
             spit.splice(i, 1);
-            keeper.x = 100000;
-            moveDirection.x = 0;
-            moveDirection.y = 0;
+            keeper.x = rand(0, canvas.width);
+            moveX = randomNegOneAndOne();
+            moveY = randomNegOneAndOne();
             keeperDie.currentTime = 0;
             keeperDie.play();
             score += 5;
@@ -273,9 +284,28 @@ function game(){
         ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
     }
 
+   for(var k = 0; k<keepers.length;k++){
+        ctx.drawImage(keepers[k].image, keepers[k].x, keepers[k].y, 70,70);
+        keepers[k].x += keepers[k].moveX;
+        keepers[k].y += keepers[k].moveY;
+        if(keepers[k].y > canvas.height - 25 || keepers[k].y < 0){
+            keepers[k].moveY *= -1;
+         }
+
+        if(keepers[k].x > canvas.width - 25 || keepers[k].x < 0){
+           keepers[k].moveX *= -1;
+        }
+        var hitBox = alpacaSprite.x < keeper.x + 25 &&
+            alpacaSprite.x + 25 > keeper.x &&
+            alpacaSprite.y  < keeper.y + 25 &&
+            alpacaSprite.y  + 25 > keeper.y;
+
+
+   }
+
     //Create player alpaca and enemies
-    ctx.drawImage(keeper.image, keeper.x, keeper.y, 50,50);
-    ctx.drawImage(alpacaSprite.image, alpacaSprite.x, alpacaSprite.y, 50,50);
+    ctx.drawImage(keeper.image, keeper.x, keeper.y, 70,70);
+    ctx.drawImage(alpacaSprite.image, alpacaSprite.x, alpacaSprite.y, 70,70);
     
     //Display score in game
     ctx.fillStyle = "White";
@@ -285,7 +315,7 @@ function game(){
     }
 
     //Display timer in upper left
-
+     
     //If captured
      switch(states){
         case "over":
@@ -350,18 +380,27 @@ function game(){
 
    
 
-function alpacaToKeeperCollision(obj,star){
+function alpacaToEnemyCollision(obj,star){
     var closestX = Math.max(obj.x, Math.min(star.x, obj.x + 25));
     var closestY = Math.max(obj.y, Math.min(star.y, obj.y + 25));
 
-    var dx = star.x - closestX;
-    var dy = star.y - closestY;
+    var dx = dudes.x - closestX;
+    var dy = dudes.y - closestY;
 
     var dist = dx * dx + dy * dy;
-    return dist <= star.radius * star.radius;
+    return dist <= dudes.radius * dudes.radius;
 }
 
 function switchScenes(nameOfScene){
     states = nameOfScene;
+}
+
+function rand(_low, _high)
+{
+    return Math.random()*(_high - _low) + _low;
+}
+
+function randomNegOneAndOne(){
+    return Math.random() > 0.5?1:-1;
 }
 //END
