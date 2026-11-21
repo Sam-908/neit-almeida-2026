@@ -1,57 +1,102 @@
-//START PROGRAM
+/*-------------------------------------------
+Game Setup
+ 1. canvas 
+ 2. context
+ 3. frame rate
+ 4. animation timer runs main function 60 frames per second
+-------------------------------------------*/
+
+
+
+
+
+/*
+START PROGRAM
+
+    Display home screen
+    Display Game Title "SPIT AND RUN"
+    Display Start Button
+
+    Player Clicks Start Button
+
+    If button is clicked starts game 
+
+        START GAME
+
+    Set score = 0
+    Set timer = 120 seconds (2 minutes)
+    Set winning score = 50
+
+    Create player (the alpaca)
+
+    While game is running
+
+        Allow player to move around the zoo using W,A,S,D
+
+        If player spits at a civilian
+            Add 1 point to score
+        End if
+
+        If player spits at a zookeeper
+            Add 5 points to score
+        End If
+
+        If player touches a zookeeper
+            Display "You were captured" Screen
+            Restart Game
+        End If
+
+        Count down timer from 120 seconds (2 minutes)
+
+        Display score in the game
+        Display timer in the upper left corner
+
+        If score >= 50
+            Display "YOU WIN!"
+            Display "The alpaca escaped the zoo!"
+            End Game
+        End If
+
+        If timer <= 0
+            Display "TIME'S UP!"
+            Display "GAME OVER"
+            Restart Game
+        End If
+
+    End While
+
+END GAME*/
+
+
+
+
+// START PROGRAM
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-var fps = 1000/60;
-var timer = setInterval(game, fps); 
+// Make scaled character images smoother
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
+
+var fps = 1000 / 60;
+var timer = setInterval(game, fps);
+
+// Game settings
+var score = 0;
+var winningScore = 50;
+var timeLeft = 120;
 
 var spit = [];
 var shootCooldown = 0;
-var startCooldown = 10;
-var boxCooldown = 0;
+var startCooldown = 0;
 
-var moveDirection = {x:1,y:1};
-
-var spitSound = new Audio("audio/velcro-strap-2.mp3")
-var keeperDie = new Audio("audio/man-scream-01.mp3")
-
-function createDudes(){
-    var dudes = {image:document.getElementById("dudes"),
-        x:1,
-        y:1,
-        moveX:0, 
-        moveY:0,}
-    return dudes;
-}
-
-var dudesCount = 50;
-var dudes = [];
-
-for(var i = 0; i < dudesCount; i++){
-    dudes[i] = createDudes();
-    dudes[i].x = Math.random() * canvas.width;
-    dudes[i].y = Math.random() * canvas.height;
-    dudes[i].radius = Math.random() * 5;
-}
-
-var alpacaSprite = {image:document.getElementById("alpaca"),x:canvas.width/2,y:canvas.height/2,moveX:0, moveY:0};
-var keeper = {image:document.getElementById("keeper"),x:rand(0, canvas.width),y:rand(0,canvas.height),moveX:0, moveY:0};
-
-function createKeepers(){
-    var keeper = {image:document.getElementById("keeper"),x:rand(0, canvas.width),y:rand(0,canvas.height),moveX:randomNegOneAndOne(), moveY:randomNegOneAndOne()};
-    return keeper;
-}
-
-var keepers = []
-var numberofKeepers = 3;
-
-for(var i = 0 ; i<numberofKeepers; i++){
-    keepers[i] = new createKeepers();
-}
-
-var acceleration = 0.5;
+var acceleration = 0.35;
 var friction = 0.9;
 
+var states = "title";
+
+// Keyboard controls
 var a = false;
 var d = false;
 var w = false;
@@ -59,348 +104,720 @@ var s = false;
 var space = false;
 var enter = false;
 
-var score = 0;
+// Images and sounds
+var alpacaImage = document.getElementById("alpaca");
+var civilianImage = document.getElementById("dudes");
+var keeperImage = document.getElementById("keeper");
 
+var spitSound = new Audio("audio/velcro-strap-2.mp3");
+var keeperDie = new Audio("audio/man-scream-01.mp3");
+var civilianDie = new Audio("audio/man-scream-02(1).mp3");
 
+// Respawn settings
+var respawnTime = 5 * 60;
 
-//Display home screen
-var states = ["title" ,"game" , "over" , "win"];
-states = "title";
+// Player
+var alpacaSprite = {
+    image: alpacaImage,
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    width: 70,
+    height: 70,
+    moveX: 0,
+    moveY: 0,
+    direction: 1,
+    hitboxX: 12,
+    hitboxY: 10,
+    hitboxWidth: 46,
+    hitboxHeight: 55
+};
 
-//Allows controls to work
-document.addEventListener("keydown", function(e){
-    console.log(e.key);
-    if(e.key == "a"){
-        a = true;
-    }
-    if(e.key == "d"){
-        d = true;
-    }
-    if(e.key == "w"){
-        w = true;
-    }
-    if(e.key == "s"){
-        s = true;
-    }
-    if(e.code === "Space"){
+// Create civilians
+function createDudes() {
+    return {
+        image: civilianImage,
+        x: Math.random() * (canvas.width - 65),
+        y: Math.random() * (canvas.height - 75),
+        width: 65,
+        height: 75,
+        moveX: (Math.random() * 2 - 1) * 0.8,
+        moveY: (Math.random() * 2 - 1) * 0.8,
+        direction: 1,
+        active: true,
+        respawnTimer: 0
+    };
+}
+
+var dudes = [];
+var dudesCount = 4;
+
+for (var i = 0; i < dudesCount; i++) {
+    dudes.push(createDudes());
+}
+
+// Create zookeepers
+function createKeepers() {
+    return {
+        image: keeperImage,
+        x: rand(0, canvas.width - 75),
+        y: rand(0, canvas.height - 75),
+        width: 75,
+        height: 75,
+        moveX: randomNegOneAndOne() * 0.7,
+        moveY: randomNegOneAndOne() * 0.7,
+        direction: 1,
+        hitboxX: 15,
+        hitboxY: 10,
+        hitboxWidth: 45,
+        hitboxHeight: 58,
+        active: true,
+        respawnTimer: 0
+    };
+}
+
+var keepers = [];
+var numberofKeepers = 3;
+
+for (var i = 0; i < numberofKeepers; i++) {
+    keepers.push(createKeepers());
+}
+
+// Keyboard events
+document.addEventListener("keydown", function(e) {
+    var key = e.key.toLowerCase();
+
+    if (key === "a") a = true;
+    if (key === "d") d = true;
+    if (key === "w") w = true;
+    if (key === "s") s = true;
+
+    if (e.code === "Space") {
         space = true;
         e.preventDefault();
     }
-    if(e.key == "Enter"){
+
+    if (key === "enter") {
         enter = true;
     }
 });
 
-document.addEventListener("keyup", function(e){
-    console.log(e.key);
-    if(e.key == "a"){
-        a = false;
-    }
-    if(e.key == "d"){
-        d = false;
-    }
-    if(e.key == "w"){
-        w = false;
-    }
-    if(e.key == "s"){
-        s = false;
-    }
-    if(e.code === "Space"){
-        space = false;
-    }
-    if(e.key == "Enter"){
-        enter = false;
+document.addEventListener("keyup", function(e) {
+    var key = e.key.toLowerCase();
+
+    if (key === "a") a = false;
+    if (key === "d") d = false;
+    if (key === "w") w = false;
+    if (key === "s") s = false;
+
+    if (e.code === "Space") space = false;
+    if (key === "enter") enter = false;
+});
+
+// Allow the Start Game button to be clicked
+canvas.addEventListener("click", function(e) {
+    var rect = canvas.getBoundingClientRect();
+
+    var mouseX = (e.clientX - rect.left) *
+        (canvas.width / rect.width);
+
+    var mouseY = (e.clientY - rect.top) *
+        (canvas.height / rect.height);
+
+    var buttonX = canvas.width / 2 - 100;
+    var buttonY = canvas.height / 2 + 100;
+
+    if (
+        (states === "title" || states === "over" || states === "win") &&
+        mouseX >= buttonX &&
+        mouseX <= buttonX + 200 &&
+        mouseY >= buttonY &&
+        mouseY <= buttonY + 80
+    ) {
+        startGame();
     }
 });
 
-function game(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    switch(states){
+// Start or restart the game
+function startGame() {
+    score = 0;
+    timeLeft = 120;
+
+    spit = [];
+    shootCooldown = 0;
+    startCooldown = 60;
+
+    alpacaSprite.x = canvas.width / 2;
+    alpacaSprite.y = canvas.height / 2;
+    alpacaSprite.moveX = 0;
+    alpacaSprite.moveY = 0;
+
+    dudes = [];
+
+    for (var i = 0; i < dudesCount; i++) {
+        dudes.push(createDudes());
+    }
+
+    keepers = [];
+
+    for (var k = 0; k < numberofKeepers; k++) {
+        keepers.push(createKeepers());
+    }
+
+    states = "game";
+}
+
+// Main game function
+function game() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    switch (states) {
         case "title":
-            //Display game title "SPIT AND RUN"
-                ctx.fillStyle = "black";
-                ctx.font = "50px Arial";
-                let titleText = "Spit and Run";
-                ctx.fillText(titleText, canvas.width/2 - (ctx.measureText(titleText).width/2), canvas.height/2 -20);
-                ctx.font = "16px Arial";
-                let instructionText = "(Press enter to start)";
-                ctx.fillText(instructionText, canvas.width/2 - (ctx.measureText(instructionText).width/2), canvas.height/2 + 40);
-
-                //Display button
-                ctx.fillStyle = "pink";
-                ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 100, 200, 80);
-                ctx.fillStyle = "black";
-                ctx.font = "24px Arial";
-
-                //If button is clicked, start game
-                let buttonText = "Start Game";
-                ctx.fillText(buttonText,canvas.width/2 - (ctx.measureText(buttonText).width/2), canvas.height/2 + 100 + 45);
-
-                if(enter){
-                    startCooldown = 10;
-                    switchScenes("game");
-                }
-        break;
+            displayTitleScreen();
+            break;
 
         case "game":
-            if(startCooldown > 0){
-                startCooldown -= 1;     
-            }
-  
-    keeper.x += moveDirection.x;
-    keeper.y += moveDirection.y;
+            playGame();
+            break;
 
-    var hitBox = alpacaSprite.x < keeper.x + 25 &&
-                alpacaSprite.x + 25 > keeper.x &&
-                alpacaSprite.y  < keeper.y + 25 &&
-                alpacaSprite.y  + 25 > keeper.y;
+        case "over":
+            displayGameOver();
+            break;
 
-   //Allow player to move around
-    if(a == true){
-        alpacaSprite.moveX -= acceleration;
+        case "win":
+            displayWinScreen();
+            break;
+    }
+}
+
+// Home screen
+function displayTitleScreen() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.font = "50px Arial";
+
+    var titleText = "SPIT AND RUN";
+
+    ctx.fillText(
+        titleText,
+        canvas.width / 2 - ctx.measureText(titleText).width / 2,
+        canvas.height / 2 - 20
+    );
+
+    ctx.font = "16px Arial";
+
+    var instructionText =
+        "Escape the zoo! Use W, A, S, D to move and SPACE to spit.";
+
+    ctx.fillText(
+        instructionText,
+        canvas.width / 2 - ctx.measureText(instructionText).width / 2,
+        canvas.height / 2 + 40
+    );
+
+    drawButton("START GAME");
+
+    if (enter) {
+        enter = false;
+        startGame();
+    }
+}
+
+// Main gameplay
+function playGame() {
+    // Background
+    ctx.fillStyle = "green";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (startCooldown > 0) {
+        startCooldown--;
     }
 
-    if(d == true){
-        alpacaSprite.moveX += acceleration;
+    // Countdown timer
+    timeLeft -= 1 / 60;
+
+    if (timeLeft <= 0) {
+        timeLeft = 0;
+        states = "over";
+        return;
     }
 
-    if(w == true){
-        alpacaSprite.moveY -= acceleration;
-    }
+    // Player movement
+    if (a) alpacaSprite.moveX -= acceleration;
+    if (d) alpacaSprite.moveX += acceleration;
+    if (w) alpacaSprite.moveY -= acceleration;
+    if (s) alpacaSprite.moveY += acceleration;
 
-    if(s == true){
-        alpacaSprite.moveY += acceleration;
-    }
-
-    // if alpaca is off the right side of the screen make it come out the other side
-    if(alpacaSprite.x >  canvas.width){
-        alpacaSprite.x = -25;
-    }
-
-    if(alpacaSprite.x < -25){
-        alpacaSprite.x = 800;
-    }
-
-    if(keeper.y > canvas.height - 25 || keeper.y < 0){
-        moveDirection.y *= -1;
-    }
-
-    if(keeper.x > canvas.width - 25 || keeper.x < 0){
-        moveDirection.x *= -1;
-    }
-
-    //Multiply by friction
     alpacaSprite.moveX *= friction;
     alpacaSprite.moveY *= friction;
 
-    //Update the X and Y position values
     alpacaSprite.x += alpacaSprite.moveX;
     alpacaSprite.y += alpacaSprite.moveY;
 
-    //Spit firing code
-    if(shootCooldown > 0){
+    // Player facing direction
+    if (alpacaSprite.moveX < -0.1) {
+        alpacaSprite.direction = -1;
+    }
+
+    if (alpacaSprite.moveX > 0.1) {
+        alpacaSprite.direction = 1;
+    }
+
+    // Keep player inside the canvas
+    if (alpacaSprite.x < 0) {
+        alpacaSprite.x = 0;
+        alpacaSprite.moveX = 0;
+    }
+
+    if (alpacaSprite.x + alpacaSprite.width > canvas.width) {
+        alpacaSprite.x = canvas.width - alpacaSprite.width;
+        alpacaSprite.moveX = 0;
+    }
+
+    if (alpacaSprite.y < 0) {
+        alpacaSprite.y = 0;
+        alpacaSprite.moveY = 0;
+    }
+
+    if (alpacaSprite.y + alpacaSprite.height > canvas.height) {
+        alpacaSprite.y = canvas.height - alpacaSprite.height;
+        alpacaSprite.moveY = 0;
+    }
+
+    // Spit cooldown
+    if (shootCooldown > 0) {
         shootCooldown--;
     }
 
-    if(space && shootCooldown === 0){
+    // Shoot spit using SPACE
+    if (space && shootCooldown === 0) {
         spit.push({
-            x:alpacaSprite.x + 25 /2 -2,
-            y:alpacaSprite.y + -10,
-            width:4,
-            height:6,
-            speed:10,
-            color:"white"
+            x: alpacaSprite.x + alpacaSprite.width / 2 - 2,
+            y: alpacaSprite.y,
+            width: 6,
+            height: 8,
+            speed: 10,
+            color: "white"
         });
+
         spitSound.currentTime = 0;
-        spitSound.play();
-        shootCooldown = 10;
+        spitSound.play().catch(function() {});
+
+        shootCooldown = 30;
     }
 
-    //Draws Background
-    ctx.fillStyle = "green";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    // Update civilians
+    for (var i = 0; i < dudes.length; i++) {
+        var civilian = dudes[i];
 
-    //Draws dudes
-     for(var i = 0; i < dudes.length; i++){
-        //Collide with dudes
-        if(alpacaToEnemyCollision(alpacaSprite, dudes[i] && startCooldown <= 0)){  
-            alpacaSprite.x = canvas.width/2
-            alpacaSprite.y = canvas.height/2 + 100;
+        // Handle civilian respawning
+        if (!civilian.active) {
+            civilian.respawnTimer--;
 
-            alpacaSprite.moveX = 0;
-            alpacaSprite.moveY = 0;
-            score = -1;
+            if (civilian.respawnTimer <= 0) {
+                civilian.x = rand(0, canvas.width - civilian.width);
+                civilian.y = rand(0, canvas.height - civilian.height);
+
+                civilian.moveX = (Math.random() * 2 - 1) * 0.8;
+                civilian.moveY = (Math.random() * 2 - 1) * 0.8;
+
+                civilian.active = true;
+            }
+
+            continue;
+        }
+
+        civilian.x += civilian.moveX;
+        civilian.y += civilian.moveY;
+
+        // Civilian facing direction
+        if (civilian.moveX < -0.05) {
+            civilian.direction = -1;
+        }
+
+        if (civilian.moveX > 0.05) {
+            civilian.direction = 1;
+        }
+
+        // Bounce off canvas edges
+        if (civilian.x <= 0) {
+            civilian.x = 0;
+            civilian.moveX = Math.abs(civilian.moveX);
+        }
+
+        if (civilian.x + civilian.width >= canvas.width) {
+            civilian.x = canvas.width - civilian.width;
+            civilian.moveX = -Math.abs(civilian.moveX);
+        }
+
+        if (civilian.y <= 0) {
+            civilian.y = 0;
+            civilian.moveY = Math.abs(civilian.moveY);
+        }
+
+        if (civilian.y + civilian.height >= canvas.height) {
+            civilian.y = canvas.height - civilian.height;
+            civilian.moveY = -Math.abs(civilian.moveY);
+        }
+
+        drawSprite(civilian);
+    }
+
+    // Update zookeepers
+    for (var k = 0; k < keepers.length; k++) {
+        var currentKeeper = keepers[k];
+
+        // Handle zookeeper respawning
+        if (!currentKeeper.active) {
+            currentKeeper.respawnTimer--;
+
+            if (currentKeeper.respawnTimer <= 0) {
+                currentKeeper.x = rand(0, canvas.width - currentKeeper.width);
+                currentKeeper.y = rand(0, canvas.height - currentKeeper.height);
+
+                currentKeeper.moveX = randomNegOneAndOne() * 0.7;
+                currentKeeper.moveY = randomNegOneAndOne() * 0.7;
+
+                currentKeeper.active = true;
+            }
+
+            continue;
+        }
+
+        currentKeeper.x += currentKeeper.moveX;
+        currentKeeper.y += currentKeeper.moveY;
+
+        // Zookeeper facing direction
+        if (currentKeeper.moveX < -0.05) {
+            currentKeeper.direction = -1;
+        }
+
+        if (currentKeeper.moveX > 0.05) {
+            currentKeeper.direction = 1;
+        }
+
+        // Bounce off canvas edges
+        if (currentKeeper.x < 0) {
+            currentKeeper.x = 0;
+            currentKeeper.moveX = Math.abs(currentKeeper.moveX);
+        }
+
+        if (currentKeeper.x > canvas.width - currentKeeper.width) {
+            currentKeeper.x = canvas.width - currentKeeper.width;
+            currentKeeper.moveX = -Math.abs(currentKeeper.moveX);
+        }
+
+        if (currentKeeper.y < 0) {
+            currentKeeper.y = 0;
+            currentKeeper.moveY = Math.abs(currentKeeper.moveY);
+        }
+
+        if (currentKeeper.y > canvas.height - currentKeeper.height) {
+            currentKeeper.y = canvas.height - currentKeeper.height;
+            currentKeeper.moveY = -Math.abs(currentKeeper.moveY);
+        }
+
+        drawSprite(currentKeeper);
+
+        // Game over when the custom hitboxes overlap
+        if (
+            startCooldown <= 0 &&
+            rectanglesOverlap(alpacaSprite, currentKeeper)
+        ) {
+            states = "over";
             return;
         }
-        dudes[i].y++;
-        if(dudes[i].y > canvas.height + dudes[i].radius *2){
-            dudes[i].x = Math.random() * canvas.width;
-            dudes[i].y = -(Math.random() * canvas.height);
-            score += 1;
-        }
     }
 
-   //Colliding with keeper
-    if(hitBox == true && startCooldown <= 0){
-        switchScenes ("over");  
-        //The keeper sprite hit the player
-        alpacaSprite.x = canvas.width/2
-        alpacaSprite.y = canvas.height/2 + 100;
-
-        alpacaSprite.moveX = 0;
-        alpacaSprite.moveY = 0;
-        score = 0;
-    }
-
-    //Player spits at zookeeper
-    for(var i = spit.length -1; i>=0; i--){
-        var bullet = spit[i];
+    // Update spit and check collisions
+    for (var j = spit.length - 1; j >= 0; j--) {
+        var bullet = spit[j];
 
         bullet.y -= bullet.speed;
 
-        //Check for spit that leave the screen
-        if(bullet.y + bullet.height < 0){
-            spit.splice(i,1);
+        // Remove spit that leaves the screen
+        if (bullet.y + bullet.height < 0) {
+            spit.splice(j, 1);
             continue;
         }
 
-        var hitBox = bullet.x < keeper.x + 25 &&
-                    bullet.x + bullet.width > keeper.x &&
-                    bullet.y < keeper.y + 25 &&
-                    bullet.y + bullet.height > keeper.y;
+        var hitSomething = false;
 
-        if(hitBox){
-            spit.splice(i, 1);
-            keeper.x = rand(0, canvas.width);
-            moveX = randomNegOneAndOne();
-            moveY = randomNegOneAndOne();
-            keeperDie.currentTime = 0;
-            keeperDie.play();
-            score += 5;
+        // Check civilian collisions
+        for (var c = 0; c < dudes.length; c++) {
+            var civilianTarget = dudes[c];
+
+            if (
+                civilianTarget.active &&
+                rectanglesOverlap(bullet, civilianTarget)
+            ) {
+                score += 1;
+                civilianDie.play().catch(function() {});
+
+                // Hide civilian for five seconds
+                civilianTarget.active = false;
+                civilianTarget.respawnTimer = respawnTime;
+
+                hitSomething = true;
+                break;
+            }
+        }
+
+        // Check zookeeper collisions
+        if (!hitSomething) {
+            for (var z = 0; z < keepers.length; z++) {
+                var keeperTarget = keepers[z];
+
+                if (
+                    keeperTarget.active &&
+                    rectanglesOverlap(bullet, keeperTarget)
+                ) {
+                    score += 5;
+
+                    keeperDie.currentTime = 0;
+                    keeperDie.play().catch(function() {});
+
+                    // Hide zookeeper for five seconds
+                    keeperTarget.active = false;
+                    keeperTarget.respawnTimer = respawnTime;
+
+                    hitSomething = true;
+                    break;
+                }
+            }
+        }
+
+        if (hitSomething) {
+            spit.splice(j, 1);
             continue;
         }
 
+        // Draw spit
         ctx.fillStyle = bullet.color;
-        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+        ctx.fillRect(
+            bullet.x,
+            bullet.y,
+            bullet.width,
+            bullet.height
+        );
     }
 
-   for(var k = 0; k<keepers.length;k++){
-        ctx.drawImage(keepers[k].image, keepers[k].x, keepers[k].y, 70,70);
-        keepers[k].x += keepers[k].moveX;
-        keepers[k].y += keepers[k].moveY;
-        if(keepers[k].y > canvas.height - 25 || keepers[k].y < 0){
-            keepers[k].moveY *= -1;
-         }
+    // Draw player
+    drawSprite(alpacaSprite);
 
-        if(keepers[k].x > canvas.width - 25 || keepers[k].x < 0){
-           keepers[k].moveX *= -1;
+    // Display score and timer
+    ctx.fillStyle = "white";
+    ctx.font = "24px Arial";
+
+    ctx.fillText("Score: " + score, 20, 35);
+    ctx.fillText("Time: " + Math.ceil(timeLeft), 20, 65);
+
+    // Check winning score
+    if (score >= winningScore) {
+        states = "win";
+    }
+}
+
+// Draw a button
+function drawButton(text) {
+    ctx.fillStyle = "pink";
+
+    ctx.fillRect(
+        canvas.width / 2 - 100,
+        canvas.height / 2 + 100,
+        200,
+        80
+    );
+
+    ctx.fillStyle = "black";
+    ctx.font = "24px Arial";
+
+    ctx.fillText(
+        text,
+        canvas.width / 2 - ctx.measureText(text).width / 2,
+        canvas.height / 2 + 148
+    );
+}
+
+// Game over screen
+function displayGameOver() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.font = "42px Arial";
+
+    var message = timeLeft <= 0
+        ? "TIMES UP! GAME OVER"
+        : "YOU WERE CAPTURED!";
+
+    ctx.fillText(
+        message,
+        canvas.width / 2 - ctx.measureText(message).width / 2,
+        canvas.height / 2 - 20
+    );
+
+    ctx.font = "18px Arial";
+
+    var instruction =
+        "Press ENTER or click below to play again";
+
+    ctx.fillText(
+        instruction,
+        canvas.width / 2 - ctx.measureText(instruction).width / 2,
+        canvas.height / 2 + 40
+    );
+
+    drawButton("RESTART GAME");
+
+    if (enter) {
+        enter = false;
+        startGame();
+    }
+}
+
+// Winning screen
+function displayWinScreen() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.font = "42px Arial";
+
+    var message = "YOU WIN!";
+
+    ctx.fillText(
+        message,
+        canvas.width / 2 - ctx.measureText(message).width / 2,
+        canvas.height / 2 - 40
+    );
+
+    ctx.font = "22px Arial";
+
+    var winText = "ALPACA ESCAPED THE ZOO!";
+
+    ctx.fillText(
+        winText,
+        canvas.width / 2 - ctx.measureText(winText).width / 2,
+        canvas.height / 2 + 10
+    );
+
+    ctx.font = "18px Arial";
+
+    var instruction =
+        "Press ENTER or click below to play again";
+
+    ctx.fillText(
+        instruction,
+        canvas.width / 2 - ctx.measureText(instruction).width / 2,
+        canvas.height / 2 + 60
+    );
+
+    drawButton("PLAY AGAIN");
+
+    if (enter) {
+        enter = false;
+        startGame();
+    }
+}
+
+// Draw characters and flip their images
+function drawSprite(sprite) {
+    ctx.save();
+
+    if (sprite.direction === 1) {
+        ctx.translate(
+            sprite.x + sprite.width,
+            sprite.y
+        );
+
+        ctx.scale(-1, 1);
+
+        if (
+            sprite.image &&
+            sprite.image.complete &&
+            sprite.image.naturalWidth > 0
+        ) {
+            ctx.drawImage(
+                sprite.image,
+                0,
+                0,
+                sprite.width,
+                sprite.height
+            );
+        } else {
+            ctx.fillStyle = "white";
+            ctx.fillRect(
+                0,
+                0,
+                sprite.width,
+                sprite.height
+            );
         }
-        var hitBox = alpacaSprite.x < keeper.x + 25 &&
-            alpacaSprite.x + 25 > keeper.x &&
-            alpacaSprite.y  < keeper.y + 25 &&
-            alpacaSprite.y  + 25 > keeper.y;
-
-
-   }
-
-    //Create player alpaca and enemies
-    ctx.drawImage(keeper.image, keeper.x, keeper.y, 70,70);
-    ctx.drawImage(alpacaSprite.image, alpacaSprite.x, alpacaSprite.y, 70,70);
-    
-    //Display score in game
-    ctx.fillStyle = "White";
-    ctx.font = "30px Arial";
-    ctx.fillText(`Score: ${score}`,625,80); 
-     break;
+    } else {
+        if (
+            sprite.image &&
+            sprite.image.complete &&
+            sprite.image.naturalWidth > 0
+        ) {
+            ctx.drawImage(
+                sprite.image,
+                sprite.x,
+                sprite.y,
+                sprite.width,
+                sprite.height
+            );
+        } else {
+            ctx.fillStyle = "white";
+            ctx.fillRect(
+                sprite.x,
+                sprite.y,
+                sprite.width,
+                sprite.height
+            );
+        }
     }
 
-    //Display timer in upper left
-     
-    //If captured
-     switch(states){
-        case "over":
-            //Display game over screen
-                ctx.fillStyle = "black";
-                ctx.font = "50px Arial";
-
-                //Displayer capture screen
-                let titleText = "You were captured!";
-                ctx.fillText(titleText, canvas.width/2 - (ctx.measureText(titleText).width/2), canvas.height/2 -20);
-                ctx.font = "16px Arial";
-
-                //Restart game
-                let instructionText = "(Press enter to restart)";
-                ctx.fillText(instructionText, canvas.width/2 - (ctx.measureText(instructionText).width/2), canvas.height/2 + 40);
-                ctx.fillStyle = "pink";
-
-                ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 100, 200, 80);
-                ctx.fillStyle = "black";
-                ctx.font = "24px Arial";
-                let buttonText = "Restart Game";
-                ctx.fillText(buttonText,canvas.width/2 - (ctx.measureText(buttonText).width/2), canvas.height/2 + 100 + 45);
-
-                if(enter){
-                    startCooldown = 10;
-                    switchScenes("game");
-                }
-        break;
-            }
-
-    //If score requirement is met
-     switch(states){
-        case "win":
-            //Display win screen
-                ctx.fillStyle = "black";
-                ctx.font = "50px Arial";
-
-                //Displayer win screen
-                let titleText = "You win!";
-                ctx.fillText(titleText, canvas.width/2 - (ctx.measureText(titleText).width/2), canvas.height/2 -20);
-                ctx.font = "16px Arial";
-
-                //Restart game if wanted
-                let instructionText = "(Press enter to restart)";
-                ctx.fillText(instructionText, canvas.width/2 - (ctx.measureText(instructionText).width/2), canvas.height/2 + 40);
-                ctx.fillStyle = "pink";
-
-                ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 100, 200, 80);
-                ctx.fillStyle = "black";
-                ctx.font = "24px Arial";
-                let buttonText = "Restart Game";
-                ctx.fillText(buttonText,canvas.width/2 - (ctx.measureText(buttonText).width/2), canvas.height/2 + 100 + 45);
-
-                if(enter){
-                    startCooldown = 10;
-                    switchScenes("game");
-                }
-        break;
-            }
-
+    ctx.restore();
 }
 
-   
-
-function alpacaToEnemyCollision(obj,star){
-    var closestX = Math.max(obj.x, Math.min(star.x, obj.x + 25));
-    var closestY = Math.max(obj.y, Math.min(star.y, obj.y + 25));
-
-    var dx = dudes.x - closestX;
-    var dy = dudes.y - closestY;
-
-    var dist = dx * dx + dy * dy;
-    return dist <= dudes.radius * dudes.radius;
+// Get a custom hitbox when one is defined
+function getHitbox(object) {
+    return {
+        x: object.x + (object.hitboxX || 0),
+        y: object.y + (object.hitboxY || 0),
+        width: object.hitboxWidth || object.width,
+        height: object.hitboxHeight || object.height
+    };
 }
 
-function switchScenes(nameOfScene){
+// Rectangle collision detection
+function rectanglesOverlap(first, second) {
+    var firstBox = getHitbox(first);
+    var secondBox = getHitbox(second);
+
+    return (
+        firstBox.x < secondBox.x + secondBox.width &&
+        firstBox.x + firstBox.width > secondBox.x &&
+        firstBox.y < secondBox.y + secondBox.height &&
+        firstBox.y + firstBox.height > secondBox.y
+    );
+}
+
+// Switch game scenes
+function switchScenes(nameOfScene) {
     states = nameOfScene;
 }
 
-function rand(_low, _high)
-{
-    return Math.random()*(_high - _low) + _low;
+// Random number helper
+function rand(_low, _high) {
+    return Math.random() * (_high - _low) + _low;
 }
 
-function randomNegOneAndOne(){
-    return Math.random() > 0.5?1:-1;
+// Random direction helper
+function randomNegOneAndOne() {
+    return Math.random() > 0.5 ? 1 : -1;
 }
-//END
+
+// END PROGRAM
